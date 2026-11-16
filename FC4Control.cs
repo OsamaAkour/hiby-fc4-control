@@ -217,7 +217,7 @@ namespace FC4Control
     }
 
     // ---------- FC4 HID control channel (PEQ bands, preamp, PEQ on/off) ----------
-    // Message formats were taken from HiByUSBMaster and confirmed on the device: see fc4-protocol.md.
+    // Message formats were taken from HiByUSBMaster and confirmed on the device: see docs/PROTOCOL.md.
     class Band { public int Index, On, Filter, Freq, Q, Gain; }
 
     static class Dac
@@ -344,9 +344,29 @@ namespace FC4Control
     {
         public static string Dir { get { return Path.Combine(Application.StartupPath, "presets"); } }
 
+        // A preset name is a plain file name: no folders, no "..", no characters Windows forbids.
+        public static string CleanName(string name)
+        {
+            if (name == null) return null;
+            name = name.Trim();
+            foreach (char c in Path.GetInvalidFileNameChars()) name = name.Replace(c.ToString(), "");
+            name = name.Trim().Trim('.').Trim();
+            return name.Length == 0 ? null : name;
+        }
+
+        // Path of a preset inside the presets folder, or null if the name is not usable.
+        public static string FileFor(string dir, string name)
+        {
+            name = CleanName(name);
+            return name == null ? null : Path.Combine(dir, name + ".txt");
+        }
+
         // Reads the EQ now in the DAC and stores it as <dir>\<name>.txt.
         public static bool Save(string dir, string name, out string msg)
         {
+            string file = FileFor(dir, name);
+            if (file == null) { msg = "That preset name is not usable."; return false; }
+            name = Path.GetFileNameWithoutExtension(file);
             int pre; bool on;
             if (!Dac.GetPreamp(out pre) || !Dac.GetPeq(out on)) { msg = "Could not read the EQ from the FC4."; return false; }
             List<string> lines = new List<string>();
@@ -358,8 +378,12 @@ namespace FC4Control
                 if (b == null) { msg = "Could not read EQ band " + i + " from the FC4."; return false; }
                 lines.Add("band=" + b.Index + "," + b.On + "," + b.Filter + "," + b.Freq + "," + b.Q + "," + b.Gain);
             }
-            Directory.CreateDirectory(dir);
-            File.WriteAllLines(Path.Combine(dir, name + ".txt"), lines.ToArray());
+            try
+            {
+                Directory.CreateDirectory(dir);
+                File.WriteAllLines(file, lines.ToArray());
+            }
+            catch (Exception e) { msg = "Could not write the preset file: " + e.Message; return false; }
             msg = "Saved EQ preset: " + name; return true;
         }
 
@@ -696,9 +720,7 @@ namespace FC4Control
                 Button no = new Button(); no.Text = "Cancel"; no.SetBounds(213, 62, 75, 26); no.DialogResult = DialogResult.Cancel;
                 f.Controls.Add(l); f.Controls.Add(t); f.Controls.Add(ok); f.Controls.Add(no); f.AcceptButton = ok; f.CancelButton = no;
                 if (f.ShowDialog() != DialogResult.OK) return null;
-                string name = t.Text.Trim();
-                foreach (char c in Path.GetInvalidFileNameChars()) name = name.Replace(c.ToString(), "");
-                return name.Length == 0 ? null : name;
+                return Presets.CleanName(t.Text);
             }
         }
 
@@ -782,9 +804,17 @@ namespace FC4Control
 
     static class Program
     {
+        [DllImport("kernel32.dll")] static extern bool AttachConsole(int processId);
+        [DllImport("kernel32.dll")] static extern IntPtr GetStdHandle(int which);
+
         [STAThread]
         static int Main(string[] args)
         {
+            // This is a window app, so it has no console of its own. When it is run with options from
+            // CMD or PowerShell, write the answers to that window instead. If the output is already
+            // redirected (to a file or another program), leave it there.
+            IntPtr stdout = GetStdHandle(-11);
+            if (args.Length > 0 && (stdout == IntPtr.Zero || stdout == new IntPtr(-1))) AttachConsole(-1);
             if (args.Length > 0 && args[0] == "--list")
             {
                 Fc4 f = new Fc4();
@@ -805,9 +835,14 @@ namespace FC4Control
             }
             if (args.Length > 1 && (args[0] == "--save-preset" || args[0] == "--preset"))
             {
-                string msg; bool ok = args[0] == "--save-preset"
-                    ? Presets.Save(Presets.Dir, args[1], out msg)
-                    : Presets.Apply(Path.Combine(Presets.Dir, args[1] + ".txt"), out msg);
+                string msg; bool ok;
+                if (args[0] == "--save-preset") ok = Presets.Save(Presets.Dir, args[1], out msg);
+                else
+                {
+                    string file = Presets.FileFor(Presets.Dir, args[1]);
+                    if (file == null || !File.Exists(file)) { msg = "No preset with that name in " + Presets.Dir; ok = false; }
+                    else ok = Presets.Apply(file, out msg);
+                }
                 Console.WriteLine(msg); return ok ? 0 : 2;
             }
             if (args.Length > 0 && args[0].StartsWith("--"))

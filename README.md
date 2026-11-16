@@ -36,6 +36,10 @@ FC4 Control fixes that and adds quick access to the DAC's EQ:
 
 Requires Windows 10 or 11 (uses .NET Framework 4, which is part of Windows).
 
+The `.exe` is not code-signed, so Windows SmartScreen may warn before the first run. Each release lists the
+file's SHA-256; you can check your download with `Get-FileHash FC4Control.exe` in PowerShell, or build it
+yourself from the source (see below).
+
 ## Use
 
 - **Left-click** the tray icon: open the volume panel.
@@ -48,6 +52,15 @@ Requires Windows 10 or 11 (uses .NET Framework 4, which is part of Windows).
 On first start FC4 Control saves the EQ that is in your DAC as `presets\Original (backup).txt`,
 so you can always go back to it.
 
+> **Careful with presets from other people.** A preset is a small text file. FC4 Control refuses any value
+> outside the DAC's limits, but inside those limits a preset can still be very loud (for example every band
+> and the preamp at +9 dB). Read a shared preset before you apply it, and turn the volume down first.
+
+### Tray icon
+
+Windows may hide the icon under the `^` arrow next to the clock. To keep it visible, drag it onto the taskbar,
+or turn on **FC4Control** in *Settings → Personalization → Taskbar → Other system tray icons*.
+
 ### Command line
 
 ```
@@ -59,6 +72,9 @@ FC4Control.exe --save-preset <name>
 FC4Control.exe --eq                print the EQ that is in the DAC
 FC4Control.exe --list              show the FC4 and the apps playing on it
 ```
+
+`--set`, `--up`, `--down` and `--mute` control the copy that is already running. In CMD the prompt can come
+back before `--eq` or `--list` finish printing, because FC4Control is a window app; PowerShell waits for it.
 
 ## Build from source
 
