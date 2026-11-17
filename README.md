@@ -40,6 +40,20 @@ The `.exe` is not code-signed, so Windows SmartScreen may warn before the first 
 file's SHA-256; you can check your download with `Get-FileHash FC4Control.exe` in PowerShell, or build it
 yourself from the source (see below).
 
+### Antivirus warnings
+
+Some antivirus programs flag `FC4Control.exe` with a generic, behavior-based name such as Norton's
+`IDP.Generic`. This is a false positive: the file is new, unsigned and used by few people, and it does things
+that look unusual for an unknown program (it talks to a USB device, changes the volume of other apps and can
+start with Windows). The full source is in this repository.
+
+If it happens to you:
+
+1. Check that your file's SHA-256 matches the one on the release page.
+2. Restore the file and add it as an exclusion in your antivirus (in Norton: *View options → Restore & exclude*).
+3. Optional: report the false positive to your antivirus vendor, for example at
+   [submit.norton.com](https://submit.norton.com/), so it stops being flagged for other people.
+
 ## Use
 
 - **Left-click** the tray icon: open the volume panel.
@@ -108,3 +122,6 @@ They use the same messages as HiBy's own app and have worked fine in testing, bu
 
 نزّل `FC4Control.exe` من صفحة Releases وشغّله، وتطلع أيقونة سماعة جنب الساعة.
 ضغطة يمين عليها وفعّل **Show on desktop** عشان يصير ويدجت على سطح المكتب.
+
+إذا برنامج الحماية (مثل Norton) اعتبره خطر باسم عام مثل `IDP.Generic`، فهذا إنذار خاطئ لأن الملف جديد
+وغير موقّع. تأكد إن بصمة SHA-256 مطابقة للي في صفحة Releases، ثم استرجع الملف وأضفه للاستثناءات.
